@@ -26,6 +26,10 @@ void setup() {
   // Comparator Pins
   pinMode(7,INPUT);
   pinMode(6, INPUT);
+
+  // button control pin
+  digitalWrite(3, LOW);
+
   // comparator interrupt enabled and tripped on falling edge, 
   // which is the rising edge of the input signal.
   ACSR = B00011010; 
@@ -181,27 +185,42 @@ ISR(ANALOG_COMP_vect)
     ACSR &= ~(1<<ACIE);
 }
 
+void initiateRead()
+{
+  pinMode(3, OUTPUT);
+  delay(2000);
+  pinMode(3, INPUT);
+  //Clear any pending comparator interrupt
+  ACSR |= (1<<ACI);
+  // Enable the interrupt
+  ACSR |= (1<<ACIE);
+}
+
 void loop() {
-  if(_scanComplete)
-  {
-    _scanComplete = 0;
+  
+  if(Serial.available() && Serial.read() == 's')
+  {  
+      initiateRead();
+      while(1){
+        if(_scanComplete){
+          _scanComplete = 0;
+      
+          sortDigits();
+          int output = generateOutput();
+          if(output != 8888) // 8888 is the initial state when then the device boots
+          {
+            Serial.print(output/10);
+            Serial.print('.');
+            Serial.println(output%10);
+            break;
+          }
+      }
+    }
 
-    sortDigits();
-    Serial.println(_displayScan[0], HEX);
-    Serial.println(_displayScan[1], HEX);
-    Serial.println(_displayScan[2], HEX);
-    Serial.println(_displayScan[3], HEX);
-
-    Serial.println("out:");
-    Serial.println(generateOutput());
-    Serial.println("---");
-    delay(1000);
-
-    //Clear any pending comparator interrupt
-    ACSR |= (1<<ACI);
-    // Enable the interrupt
-    ACSR |= (1<<ACIE);
   }
+  
+
+  
 }
 
 
